@@ -1,0 +1,16 @@
+---
+title: "Final Report"
+author: "Shar & Makena"
+date: "2025-11-17"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#step 1
+
+#step 2
+
+#Step 3
