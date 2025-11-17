@@ -9,7 +9,63 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+#libraries and seed
+library(MASS)
+library(sigclust)
+
+set.seed(293)
+```
+
+
 #step 1
+
+```{r}
+n  <- 100 #keep small for testing purposes   
+p  <- 100 #dims
+
+lambda <- c(100, 100, 100, rep(1, p - 3))
+Sigma  <- diag(lambda)
+
+r_gauss <- function(n, mu, Sigma) {
+  MASS::mvrnorm(n = n, mu = mu, Sigma = Sigma)
+}
+```
+
+```{r}
+mu0 <- rep(0, p)
+X_null <- r_gauss(n, mu0, Sigma)   # n x p matrix
+
+```
+
+```{r}
+B        <- 200      # number of null datasets
+nsim     <- 100     # Monte Carlo sims inside SigClust
+pvals_soft  <- numeric(B)
+
+for (b in 1:B) {
+  Xb <- r_gauss(n, mu0, Sigma)
+  
+  sc <- sigclust(
+    x       = Xb,
+    nsim    = nsim,
+    nrep    = 1,
+    labflag = 0,
+    icovest = 1   # 1 = soft, 2 = sample, 3 = hard
+  )
+  
+  pvals_soft[b] <- sc@pval   # simulated p-value
+}
+
+# estimated Type I error at alpha = 0.05
+mean(pvals_soft <= 0.05)
+
+# quick diagnostics
+hist(pvals_soft, breaks = 20, main = "Null p-values (soft thresholding)")
+abline(v = 0.05, col = 2, lwd = 2)
+
+```
+
 
 #step 2
 
