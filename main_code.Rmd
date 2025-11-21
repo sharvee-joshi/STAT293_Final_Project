@@ -18,6 +18,16 @@ set.seed(293)
 ```
 
 
+#generate data from the normal 
+#input of sig clust should be two clusters that are reasonable 
+#generate clusters from a clustering alg 
+#sigclust will tell us if they are from the same group or not 
+#what is a cluster? 
+#clsuter index is the length 
+
+#alternatives to sims
+#look at sim section of analysis
+
 #step 1
 
 ```{r}
@@ -25,48 +35,58 @@ n  <- 100 #keep small for testing purposes
 p  <- 100 #dims
 
 lambda <- c(100, 100, 100, rep(1, p - 3))
-Sigma  <- diag(lambda)
+sig  <- diag(lambda)
 
-r_gauss <- function(n, mu, Sigma) {
-  MASS::mvrnorm(n = n, mu = mu, Sigma = Sigma)
+r_gauss <- function(n, mu, sig) {
+  MASS::mvrnorm(n = n, mu = mu, Sigma = sig)
 }
 ```
 
+
+
 ```{r}
 mu0 <- rep(0, p)
-X_null <- r_gauss(n, mu0, Sigma)   # n x p matrix
+X_null <- r_gauss(n, mu0, sig)
 
 ```
 
 ```{r}
-B        <- 200      # number of null datasets
-nsim     <- 100     # Monte Carlo sims inside SigClust
+B <- 200
+nsim <- 100     
 pvals_soft  <- numeric(B)
 
 for (b in 1:B) {
-  Xb <- r_gauss(n, mu0, Sigma)
+  xb <- r_gauss(n, mu0, sig)
   
   sc <- sigclust(
-    x       = Xb,
-    nsim    = nsim,
-    nrep    = 1,
+    x = xb,
+    nsim = nsim,
+    nrep = 1,
     labflag = 0,
     icovest = 1   # 1 = soft, 2 = sample, 3 = hard
   )
   
-  pvals_soft[b] <- sc@pval   # simulated p-value
+  pvals_soft[b] <- sc@pval  
 }
+```
 
+
+#step 2
+```{r}
 # estimated Type I error at alpha = 0.05
 mean(pvals_soft <= 0.05)
 
 # quick diagnostics
 hist(pvals_soft, breaks = 20, main = "Null p-values (soft thresholding)")
 abline(v = 0.05, col = 2, lwd = 2)
-
 ```
 
 
-#step 2
+#Step 3 - Separation 
 
-#Step 3
+
+
+
+
+
+
