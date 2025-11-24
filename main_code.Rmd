@@ -39,7 +39,7 @@ X_null <- r_gauss(n, mu0, Sigma)   # n x p matrix
 ```
 
 ```{r}
-B        <- 200      # number of null datasets
+B        <- 300     # number of null datasets
 nsim     <- 100     # Monte Carlo sims inside SigClust
 pvals_soft  <- numeric(B)
 
