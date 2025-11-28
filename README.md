@@ -13,7 +13,7 @@ $H_1$: More than one cluster exists.
 The project consists of:
 - Implementing SigClust on simple simulated data for intuition.
 - Exploring cluster behavior under three core scenarios: (1) Null, (2) Strong Signal (Alt 1), (3) Weak Dense Signal (Alt 2).
-- Running BRCA cancer subtype simulations, replicating settings from Huang et al. (2015) (done by Person 2).
+- Running BRCA cancer subtype simulations, replicating settings from Huang et al. (2015).
 - Synthesizing results into a formal written report.
 
 This repository contains reproducible code, the final R Markdown report, and all supporting functions.
