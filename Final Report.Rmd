@@ -137,7 +137,7 @@ To visualize this idea, we begin with a simple two dimensional toy example, as s
 
 # Implementation in Simulation Scenarios
 
-To explore the SigClust hevaior in a controlled setting, we implemented simple simulations to generate high dimensional Gaussian data and evaluate three scenarios. We used the `sigclust()` function, something the authors created for this paper. We will explain the functionality of it below. 
+To explore the SigClust behavior in a controlled setting, we implemented simple simulations to generate high dimensional Gaussian data and evaluate three scenarios. We used the `sigclust()` function, something the authors created for this paper. We will explain the functionality of it below. 
 
 At its core, `sigclust()` implements the testing procedure described in Huang et al. (2015) and documented in the package reference manual. SigClust works by computing the clustering index, defied as the ratio of within cluster variation to total variation, and uses an embedded k-means clustering step. Specifically, when `labflag = 0`, SigClust will internally apply 2-means clustering to find the partition that minimized within-cluster sum of squares. When `labflag = 1`, the user supplies the labels but the same index is computed. 
 
@@ -293,9 +293,6 @@ For an implementation perspective, SigClust was computationally intensive. From 
 
 Overall, this project does help clarify how SigClust behaves in both idealized null settings and more challenging alternatives. Future work perhaps could explore large Monte Carlo sample sizes, if SigClust works with more than two clusters, alternative covariance structures, and working on refining how it works with weaker signals. 
 
-\newpage
-
-# References
 
 # References
 
@@ -309,7 +306,6 @@ Huang, H., Liu, Y., Yuan, M., & Marron, J. S. (2015). *SigClust: Statistical Sig
 
 # Team member contribution
 
-\section*{Team Member Contributions}
 
 \begin{table}[h!]
 \centering
