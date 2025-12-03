@@ -54,6 +54,16 @@ The statistical methodology (covariance shrinkage, eigenvalue thresholding, null
 
 ## BRCA Analysis
 
+In addition to our controlled Gaussian simulations, our project also references a BRCA (breast cancer) subtype analysis inspired by Huang et al. (2015). The BRCA setting is useful because some subtype pairs are known to be biologically distinct, while others are much harder to separate. This allows SigClust to be evaluated on realistic, high-dimensional gene expression structure.
+
+### Simulation Approach
+To mirror the structure analyzed in the paper, the BRCA simulation workflow proceeds in three main steps:
+1. Feature Filtering
+2. Pairwise Subtype Comparisons
+3. SigClust Configuration
+
+Our goal is not to reproduce the full BRCA dataset, but rather to mimic the structure described in the literature and evaluate whether SigClust correctly identifies which subtype pairs exhibit meaningful biological separation.
+
 ## References
 
 Huang, H., Liu, Y., Yuan, M., & Marron, J. S. (2015). Statistical Significance of Clustering Based on High-Dimensional Data. Journal of Computational and Graphical Statistics, 24(3), 975–993.
