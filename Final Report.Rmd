@@ -16,7 +16,7 @@ knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=60), warning = FAL
 library(MASS)
 library(sigclust)
 library(ggplot2)
-
+library(gridExtra)
 ```
 
 
@@ -380,7 +380,8 @@ The Monte Carlo remains centered around 0.955 and the observed cluster index fal
 This behavior is consistent with the theory that SigClust is more powerful with sparser and stronger signals. Dense and weak signals are more difficult to detect because the cluster index aggregates differences across all of the dimensions, and the small deviations are wiped out by high dimensional noise. SigClust is sensitive to strong but sparse structure, but less powerful for weak distributed signals, matching the patterns reported in the original paper.
 
 ## Repeated Simulation Scenarios
-```{r}
+```{r, echo = FALSE}
+#v = 50
 run_null_once <- function(icovest = 1, nsim = 1000) {
   X <- r_gauss(n, rep(0, p), Sigma)
   sc <- sigclust(X, nsim = nsim, nrep = 1, labflag = 0, icovest = icovest)
@@ -425,9 +426,80 @@ results <- data.frame(
   NumRuns  = c(100, 100, 100),
   Prop_p_less_0.05 = c(prop_null_sig, prop_alt1_sig, prop_alt2_sig)
 )
+
 ```
 
-Across repeated simulations, SigClust demonstrated strong sensitivity to a pronounced one-direction signal (Alt 1), detecting the cluster structure in 94% of runs. In contrast, the weak dense signal case (Alt 2) showed only a 3% rejection rate, consistent with the difficulty of distinguishing two clusters when the signal is extremely small and spread across many coordinates. Under the null, SigClust produced no false rejections, indicating stable behavior and proper Type I error control.
+```{r, echo = FALSE}
+#v=30
+make_sigma <- function(p, v, w) {
+  diag(c(rep(v, w), rep(1, p - w)))
+}
+
+p  <- 1000
+v  <- 30
+w  <- 10
+n  <- 100
+Sigma <- make_sigma(p, v, w)
+
+r_gauss <- function(n, mu, Sigma) {
+  MASS::mvrnorm(n, mu, Sigma)
+}
+
+set.seed(293)
+
+null_pvals_30  <- replicate(100, run_null_once())
+alt1_pvals_30  <- replicate(100, run_alt1_once())
+alt2_pvals_30 <- replicate(100, run_alt2_once())
+
+prop_null_sig_30 <- mean(null_pvals_30 < 0.05)
+prop_alt1_sig_30 <- mean(alt1_pvals_30 < 0.05)
+prop_alt2_sig_30 <- mean(alt2_pvals_30 < 0.05)
+
+
+results_30 <- data.frame(
+  Scenario = c("Null", "Alt 1 (strong shift)", "Alt 2 (weak dense shift)"),
+  NumRuns  = c(100, 100, 100),
+  Prop_p_less_0.05 = c(prop_null_sig_30, prop_alt1_sig_30, prop_alt2_sig_30)
+)
+```
+
+To evaluate how SigClust responds to different covariance structures, we varied the spike variance $v$ while holding the rest of the simulation setup fixed.We examined the proportion of p-values below 0.05 under three scenarios described previously. We ran 100 simulations per scenario and compared results for $v = 30$ and $v=50$. The table below describes our findings. 
+
+```{r,echo = FALSE}
+results_50 <- results
+
+results_30$V <- 30
+results_50$V <- 50
+
+results_combined <- rbind(results_30, results_50)
+
+results_combined_pretty <- results_combined
+names(results_combined_pretty) <- c(
+  "Scenario",
+  "Number of Runs",
+  "Proportion p < 0.05",
+  "Spike Variance v"
+)
+
+knitr::kable(
+  results_combined_pretty,
+  caption = "Proportion of SigClust p-values below 0.05 across scenarios and spike variance v."
+)
+```
+
+### Null Scenario: Proper Type I Error Control
+
+For both $v = 30$ and $v=50$, the proportion of significant p-values is $0.00$. This confirms that SigClust maintains the correct Type I error under the covariance structure, regardless of how we change it. This matches the behavior described in Huang et al. (2015), where the soft-threshold estimator was specifically designed to behave conservatively and avoid false positives in high-dimensional settings.
+
+### Alternative 1: Strong Mean Shift
+
+When $v = 30$, we see that the detection rate is 1.00, meaning we have perfect power. As we increase $v$ to equal $50$, the detection remains high at $0.92$. Once again, this is expected: a large, sparse signal is exactly the type of deviation SigClust is optimized to detect. Interestingly, the power drops slightly in the increase, which suggests that extremely large leading eigenvalues make the Gaussian null harder to distinguish from the alternative. This once again, aligns with the paper's observation that t he sample covariance estimator overestimates noise directions when spikes are large, making separation less visually obvious when clusters actually exist. 
+
+### Alternative 2: Weak Dense Shift
+
+For the final scenario, we see that at $v=30$, SigClust detects the weak dense signal every time, with a detection rate of $1.00$. However, at $v=50$, detection essentially disappears, with a rate of $0.01$. This is quite a dramatic shift. We believe this may be due to dense, low amplitude signal becomes overwhelmed by very high variance spike directions. When $v$ is small to moderate, the weak signal still influences the cluster index enough for SigClust to notice. However, when $v$ is large, the noise eigen structure dominates, and the cluster index under the alternative becomes nearly indistinguishable from that of the null. 
+
+In conclusion, we see that SigClust behaves perfectly under the null for both covariate settings. It is able to detect strong signals reliably, though it's performance weakens as the spike variance increases. On the other hand, weak dense signals are extremely sensitive to the covariance structure and may become undetectable when large spikes dominates the covariance eigenstructure. These findings parallel the findings of the paper. More work will need to be done to find the exact shift for when the weak dense signal can no longer be detected, but we find that to be somewhere between $v=40 \space \text{to} \space 50$. In the Appendix, we have also attached the distributions of all of the p-values for each covariate structure. 
 
 
 \newpage
@@ -625,13 +697,156 @@ differences are embedded within a high-dimensional spiked covariance
 model.
 
 \newpage
+
 # Conclusions
 
 In this project, we explored how SigClust behaves under controlled, high dimensional simulation settings and recreated the paper's results. We observed substantial p-value variability across runs, with SigClust sometimes rejecting and sometimes failing to reject the null. This instability reflects a known phenomenon described in the original SigClust paper: power decreases dramatically for dense low-amplitude signals, especially in the presence of large eigenvalue spikes. Thus, our findings match the theoretical behavior reported by Huang et al. (2015).
 
-For an implementation perspective, SigClust was computationally intensive. From the Monte Carlo procedure and eigenvalue shrinkage to the repeated k-means clustering, simulations became expensive and tuning `nsim` and the number of variables was mandatory. 
+For an implementation perspective, SigClust was computationally intensive. From the Monte Carlo procedure and eigenvalue shrinkage to the repeated k-means clustering, simulations became expensive and tuning `nsim` and the number of variables was mandatory. After repeatedly running each scenario 100 times, we found that keeping `nsim=1000` made the repetition code run for approximately 60 minutes on a large ram computer. While this is not as computationally heavy in comparison to other projects, it can be improved upon, with perhaps parallel computing. 
 
 Overall, this project does help clarify how SigClust behaves in both idealized null settings and more challenging alternatives. Future work perhaps could explore large Monte Carlo sample sizes, if SigClust works with more than two clusters, alternative covariance structures, and working on refining how it works with weaker signals. 
+
+\newpage
+
+# Appendix
+
+```{r, echo = FALSE}
+df_null_v50 <- data.frame(pval = null_pvals)
+df_alt1_v50 <- data.frame(pval = alt1_pvals)
+df_alt2_v50 <- data.frame(pval = alt2_pvals)
+
+
+
+null_50 <- ggplot(df_null_v50, aes(x = pval)) +
+  geom_histogram(
+    bins = 10,
+    color = "white",
+    fill  = "deeppink1"
+  ) +
+  scale_x_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)
+  ) +
+  labs(
+    title = "Null p-values (v = 50)",
+    x = "p-value",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.2, face = "bold")
+  )
+
+alt1_50 <- ggplot(df_alt1_v50, aes(x = pval)) +
+  geom_histogram(
+    bins = 10,
+    color = "white",
+    fill  = "lightslateblue"
+  ) +
+  scale_x_continuous(
+    limits = c(0, 0.1),
+    breaks = seq(0, 1, by = 0.01)
+  ) +
+  labs(
+    title = "Alt 1 p-values (v = 50)",
+    x = "p-value",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.2, face = "bold")
+  )
+
+alt2_50 <- ggplot(df_alt2_v50, aes(x = pval)) +
+  geom_histogram(
+    bins = 10,
+    color = "white",
+    fill  = "royalblue"
+  ) +
+  scale_x_continuous(
+    limits = c(0, 0.1),
+    breaks = seq(0, 1, by = 0.01)
+  ) +
+  labs(
+    title = "Alt 2 p-values (v = 50)",
+    x = "p-value",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.2, face = "bold")
+  )
+
+grid.arrange(null_50, alt1_50,alt2_50, nrow = 3)
+```
+```{r, echo = FALSE}
+df_null_v_30 <- data.frame(pval = null_pvals_30)
+df_alt1_v_30 <- data.frame(pval = alt1_pvals_30)
+df_alt2_v_30 <- data.frame(pval = alt2_pvals_30)
+
+
+null_30 <- ggplot(df_null_v_30, aes(x = pval)) +
+  geom_histogram(
+    bins = 10,
+    color = "white",
+    fill  = "deeppink1"
+  ) +
+  scale_x_continuous(
+    limits = c(0, 1),
+    breaks = seq(0, 1, by = 0.1)
+  ) +
+  labs(
+    title = "Null p-values (v = 30)",
+    x = "p-value",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.2, face = "bold")
+  )
+
+alt1_30 <- ggplot(df_alt1_v_30, aes(x = pval)) +
+  geom_histogram(
+    bins = 10,
+    color = "white",
+    fill  = "lightslateblue"
+  ) +
+  scale_x_continuous(
+    limits = c(0, 0.01),
+    breaks = seq(0, 1, by = 0.001)
+  ) +
+  labs(
+    title = "Alt 1 p-values (v = 30)",
+    x = "p-value",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.2, face = "bold")
+  )
+
+alt2_30 <- ggplot(df_alt2_v_30, aes(x = pval)) +
+  geom_histogram(
+    bins = 10,
+    color = "white",
+    fill  = "royalblue"
+  ) +
+  scale_x_continuous(
+    limits = c(0, 0.01),
+    breaks = seq(0, 1, by = 0.001)
+  ) +
+  labs(
+    title = "Alt 2 p-values (v = 30)",
+    x = "p-value",
+    y = "Frequency"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.2, face = "bold")
+  )
+
+grid.arrange(null_30, alt1_30,alt2_30, nrow = 3)
+```
 
 
 # References
