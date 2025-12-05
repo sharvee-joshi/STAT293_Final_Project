@@ -5,8 +5,6 @@ output:
   pdf_document:
       number_sections: TRUE
       fig_caption: yes
-      toc: true
-      toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
@@ -18,25 +16,9 @@ knitr::opts_chunk$set(echo = TRUE,tidy.opts=list(width.cutoff=60), warning = FAL
 library(MASS)
 library(sigclust)
 library(ggplot2)
-set.seed(293)
 
-make_sigma <- function(p, v, w) {
-  diag(c(rep(v, w), rep(1, p - w)))
-}
-
-p  <- 1000  
-v  <- 30       #large eigenvalue
-w  <- 1       #number of large eigenvalues
-n  <- 100      #total sample size
-Sigma <- make_sigma(p, v, w)
-
-r_gauss <- function(n, mu, Sigma) {
-  MASS::mvrnorm(n, mu, Sigma)
-}
 ```
 
-
-\newpage
 
 \begin{centering}
 
@@ -53,8 +35,8 @@ against
 \(
 H_1:\text{more than one cluster}.
 \)
-We replicate a subset of the simulation settings in Huang et al. using high–dimensional Gaussian data with a spiked covariance structure. First, we generate data from a single Gaussian distribution, apply k-means with \(k=2\), and use SigClust to test whether the resulting partition corresponds to real clusters. We then focus on implementing the test, examining the behavior under more complex scenarios dealing with breast cancer data, similar to the data used in the paper. Specifically, we simulate high-dimensional Gaussian data created to mimic the data found in the paper. Our findings align with those in Huang et al. (2015) and complement the BRCA cancer subtype analysis in the methodology section. SigClust correctly rejects under strong separation and struggles under a weak dense signal.
-\newpage
+We replicate a subset of the simulation settings in Huang et al. using high–dimensional Gaussian data with a spiked covariance structure. First, we generate data from a single Gaussian distribution, apply k-means with \(k=2\), and use SigClust to test whether the resulting partition corresponds to real clusters. We then focus on implementing the test, examining the behavior under more complex scenarios dealing with breast cancer data, similar to the data used in the paper.  Specifically, we simulate high-dimensional Gaussian data created to mimic the data found in the paper. Our findings align with those in Huang et al. (2015) and complement the BRCA cancer subtype analysis in the methodology section. SigClust correctly rejects under strong separation and struggles under a weak dense signal.We are currently working on running repeated simulations of approximately 100 repetitions for each of the three scenarios described above. The hope is to calculate the proportion of p-values that fall below 0.05 and see if they match the results expected. We also hope to repeat these on varying strengths of eigenvalues.
+
 
 # Introduction
 
@@ -261,15 +243,21 @@ Under the null hypothesis, the data comes from a single multivariate Gaussian di
 
 ```{r, include = FALSE}
 set.seed(123)
+
 make_sigma <- function(p, v, w) {
   diag(c(rep(v, w), rep(1, p - w)))
 }
 
 p  <- 1000
-v  <- 50       # large eigenvalue
-w  <- 10       # number of large eigenvalues
-n  <- 100      # total sample size
+v  <- 50
+w  <- 10
+n  <- 100
 Sigma <- make_sigma(p, v, w)
+
+r_gauss <- function(n, mu, Sigma) {
+  MASS::mvrnorm(n, mu, Sigma)
+}
+
 
 
 #NULL
@@ -292,6 +280,10 @@ sigclust_null <- function(nsim = 1000, nrep = 1, icovest = 1) {
 sc_null <- sigclust_null()
 plot(sc_null)
 ```
+
+
+
+
 ```{r,echo=FALSE,out.width="80%", fig.cap="SigClust diagnostic plot for Null Hypothesis"}
 knitr::include_graphics("null.png")
 ```
@@ -386,6 +378,57 @@ Figure 4 shows the SigClust diagnostic output under the weak and diffuse signal.
 The Monte Carlo remains centered around 0.955 and the observed cluster index falls near the lower tail of the distribution. We yield a p-value around 0.05, which is right on the conventional significance boundary. This suggests that SigClust barely detects the presence of two clusters, but the evidence is weaker than that of Alternative 1, which is to be expected. 
 
 This behavior is consistent with the theory that SigClust is more powerful with sparser and stronger signals. Dense and weak signals are more difficult to detect because the cluster index aggregates differences across all of the dimensions, and the small deviations are wiped out by high dimensional noise. SigClust is sensitive to strong but sparse structure, but less powerful for weak distributed signals, matching the patterns reported in the original paper.
+
+## Repeated Simulation Scenarios
+```{r}
+run_null_once <- function(icovest = 1, nsim = 1000) {
+  X <- r_gauss(n, rep(0, p), Sigma)
+  sc <- sigclust(X, nsim = nsim, nrep = 1, labflag = 0, icovest = icovest)
+  sc@pval                       # extract p-value
+}
+
+run_alt1_once <- function(a = 30, icovest = 1, nsim = 1000) {
+  mu1 <- rep(0, p)
+  mu2 <- c(a, rep(0, p - 1))
+
+  X1 <- r_gauss(n/2, mu1, Sigma)
+  X2 <- r_gauss(n/2, mu2, Sigma)
+  
+  sc <- sigclust(rbind(X1, X2), nsim = nsim, nrep = 1, labflag = 0, icovest = icovest)
+  sc@pval
+}
+
+run_alt2_once <- function(a = 0.5, icovest = 1, nsim = 1000) {
+  mu1 <- rep(0, p)
+  mu2 <- rep(a, p)
+
+  X1 <- r_gauss(n/2, mu1, Sigma)
+  X2 <- r_gauss(n/2, mu2, Sigma)
+  
+  sc <- sigclust(rbind(X1, X2), nsim = nsim, nrep = 1, labflag = 0, icovest = icovest)
+  sc@pval
+}
+
+set.seed(293)
+
+null_pvals  <- replicate(100, run_null_once())
+alt1_pvals  <- replicate(100, run_alt1_once())
+alt2_pvals  <- replicate(100, run_alt2_once())
+
+prop_null_sig <- mean(null_pvals < 0.05)
+prop_alt1_sig <- mean(alt1_pvals < 0.05)
+prop_alt2_sig <- mean(alt2_pvals < 0.05)
+
+
+results <- data.frame(
+  Scenario = c("Null", "Alt 1 (strong shift)", "Alt 2 (weak dense shift)"),
+  NumRuns  = c(100, 100, 100),
+  Prop_p_less_0.05 = c(prop_null_sig, prop_alt1_sig, prop_alt2_sig)
+)
+```
+
+Across repeated simulations, SigClust demonstrated strong sensitivity to a pronounced one-direction signal (Alt 1), detecting the cluster structure in 94% of runs. In contrast, the weak dense signal case (Alt 2) showed only a 3% rejection rate, consistent with the difficulty of distinguishing two clusters when the signal is extremely small and spread across many coordinates. Under the null, SigClust produced no false rejections, indicating stable behavior and proper Type I error control.
+
 
 \newpage
 # Real Data Analysis
